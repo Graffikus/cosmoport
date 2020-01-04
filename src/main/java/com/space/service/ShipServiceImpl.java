@@ -11,12 +11,15 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
-public class ShipServiceImpl implements ShipService {
+public class ShipServiceImpl implements ShipService{
 
     @Autowired
     private Repository repository;
@@ -27,40 +30,43 @@ public class ShipServiceImpl implements ShipService {
                                   Boolean isUsed, Double minSpeed, Double maxSpeed, Integer minCrewSize,
                                   Integer maxCrewSize, Double minRating, Double maxRating) {
         Iterable<Ship> ships = repository.findAll();
-        List<Ship> shipsByParameters = new ArrayList<>();
+        List<Ship> shipsList = new ArrayList<>();
         boolean isActual;
         for (Ship ship : ships) {
-            isActual = true;
             calendar.setTime(ship.getProdDate());
-            if (name != null && !ship.getName().toLowerCase().contains(name.toLowerCase())) isActual = false;
-            else if (planet != null && !ship.getPlanet().toLowerCase().contains(planet.toLowerCase())) isActual = false;
-            else if (shipType != null && !ship.getShipType().equals(shipType)) isActual = false;
-            else if (after != null || before != null) {
+            isActual = name == null || ship.getName().toLowerCase().contains(name.toLowerCase());
+            if (planet != null && !ship.getPlanet().toLowerCase().contains(planet.toLowerCase())) isActual = false;
+            if (shipType != null && (!ship.getShipType().equals(shipType.toString()))) isActual = false;
+            if (after != null || before != null) {
                 if (after == null) after = 0L;
                 if (before == null) before = Long.MAX_VALUE;
-                Calendar afterCalendar = Calendar.getInstance();
-                afterCalendar.setTimeInMillis(after);
-                Calendar beforeCalendar = Calendar.getInstance();
-                beforeCalendar.setTimeInMillis(before);
-                if (calendar.getTimeInMillis() <= afterCalendar.getTimeInMillis() || calendar.getTimeInMillis() >= beforeCalendar.getTimeInMillis())
-                    isActual = false;
-            } else if (isUsed != null && isUsed != ship.getUsed()) isActual = false;
-            else if (minSpeed != null || maxSpeed != null) {
+                Calendar calendarAfter = Calendar.getInstance();
+                calendarAfter.setTimeInMillis(after);
+                Calendar calendarBefore = Calendar.getInstance();
+                calendarBefore.setTimeInMillis(before);
+                if (this.calendar.getTimeInMillis() <= calendarAfter.getTimeInMillis()
+                        || this.calendar.getTimeInMillis() >= calendarBefore.getTimeInMillis()) isActual = false;
+            }
+            if (isUsed != null && isUsed != ship.getUsed()) isActual = false;
+            if (minSpeed != null || maxSpeed != null) {
                 if (minSpeed == null) minSpeed = Double.MIN_VALUE;
                 if (maxSpeed == null) maxSpeed = Double.MAX_VALUE;
                 if (ship.getSpeed() <= minSpeed || ship.getSpeed() >= maxSpeed) isActual = false;
-            } else if (minCrewSize != null || maxCrewSize != null) {
+            }
+            if (minCrewSize != null || maxCrewSize != null) {
                 if (minCrewSize == null) minCrewSize = Integer.MIN_VALUE;
                 if (maxCrewSize == null) maxCrewSize = Integer.MAX_VALUE;
                 if (ship.getCrewSize() <= minCrewSize || ship.getCrewSize() >= maxCrewSize) isActual = false;
-            } else if (minRating != null || maxRating != null) {
+            }
+            if (minRating != null || maxRating != null) {
                 if (minRating == null) minRating = Double.MIN_VALUE;
                 if (maxRating == null) maxRating = Double.MAX_VALUE;
                 if (ship.getRating() <= minRating || ship.getRating() >= maxRating) isActual = false;
             }
-            if (isActual) shipsByParameters.add(ship);
+            if (isActual)
+                shipsList.add(ship);
         }
-        return shipsByParameters;
+        return shipsList;
     }
 
     @Override
@@ -68,40 +74,49 @@ public class ShipServiceImpl implements ShipService {
         if (pageNumber == null) pageNumber = 0;
         if (pageSize == null) pageSize = 3;
         if (shipOrder == null) shipOrder = ShipOrder.ID;
-        if (shipOrder.getFieldName().equals(ShipOrder.DATE.getFieldName()))
-            return ships.stream().sorted(Comparator.comparing(Ship::getProdDate)).skip(pageNumber*pageSize)
-                    .limit(pageSize).collect(Collectors.toList());
-        if (shipOrder.getFieldName().equals(ShipOrder.RATING.getFieldName()))
-            return ships.stream().sorted(Comparator.comparing(Ship::getRating)).skip(pageNumber*pageSize)
-                    .limit(pageSize).collect(Collectors.toList());
-        if (shipOrder.getFieldName().equals(ShipOrder.SPEED.getFieldName()))
-            return ships.stream().sorted(Comparator.comparing(Ship::getSpeed)).skip(pageNumber*pageSize)
-                    .limit(pageSize).collect(Collectors.toList());
+        if (shipOrder.getFieldName().equals(ShipOrder.DATE.getFieldName())) return ships.stream()
+                .sorted(Comparator.comparing(Ship::getProdDate)).skip(pageNumber*pageSize)
+                .limit(pageSize).collect(Collectors.toList());
+        if (shipOrder.getFieldName().equals(ShipOrder.RATING.getFieldName())) return ships.stream()
+                .sorted(Comparator.comparing(Ship::getRating)).skip(pageNumber*pageSize)
+                .limit(pageSize).collect(Collectors.toList());
+        if (shipOrder.getFieldName().equals(ShipOrder.SPEED.getFieldName())) return ships.stream()
+                .sorted(Comparator.comparing(Ship::getSpeed)).skip(pageNumber*pageSize)
+                .limit(pageSize).collect(Collectors.toList());
         return ships.stream().sorted(Comparator.comparing(Ship::getId)).skip(pageNumber*pageSize)
                 .limit(pageSize).collect(Collectors.toList());
+    }
+
+    @Override
+    public Ship getShipById(String id) {
+        return repository.findById(idStringToLong(id)).orElseThrow(new Supplier<NotFoundException>() {
+            @Override
+            public NotFoundException get() {
+                return new NotFoundException();
+            }
+        });
     }
 
     @Override
     public Ship createShip(Ship ship) {
         if (ship.getProdDate() == null) throw new BadRequestException();
         calendar.setTime(ship.getProdDate());
-        if (ship.getName() == null || ship.getPlanet() == null || ship.getShipType() == null ||
-                ship.getProdDate() == null || ship.getSpeed() == null || ship.getCrewSize() == null
-        ) throw new BadRequestException();
+        if (ship.getName() == null || ship.getPlanet() == null || ship.getShipType() == null
+                ||ship.getProdDate() == null || ship.getSpeed() == null
+                || ship.getCrewSize() == null) throw new BadRequestException();
         calendar.setTime(ship.getProdDate());
-        if (ship.getName().length() == 0 || ship.getName().length() > 50 || ship.getPlanet().length() == 0 ||
-                ship.getPlanet().length() > 50 || calendar.get(Calendar.YEAR) > 3019 ||
-                calendar.get(Calendar.YEAR) < 2800 || ship.getSpeed() > 0.99 ||
-                ship.getSpeed() < 0.01 || ship.getCrewSize() < 1 || ship.getCrewSize() > 9999
-        ) throw new BadRequestException();
+        if (ship.getName().length() == 0 || ship.getName().length() > 50 || ship.getPlanet().length() == 0
+                || ship.getPlanet().length() > 50 || calendar.get(Calendar.YEAR) > 3019
+                || calendar.get(Calendar.YEAR) < 2800 || ship.getSpeed() > 0.99 || ship.getSpeed() < 0.01
+                || ship.getCrewSize() < 1 || ship.getCrewSize() > 9999) throw new BadRequestException();
         if (ship.getUsed() == null) ship.setUsed(false);
         calculateRating(ship);
         return repository.saveAndFlush(ship);
     }
 
     @Override
-    public Ship updateShip(String id, Ship ship) {
-        Long longId = idToLong(id);
+    public Ship updateShip( String id, Ship ship) {
+        Long longId = idStringToLong(id);
         if (!repository.existsById(longId)) throw new NotFoundException();
         Ship modifiedShip = repository.findById(longId).get();
         if (ship.getName() != null) {
@@ -132,31 +147,20 @@ public class ShipServiceImpl implements ShipService {
     }
 
     @Override
-    public Ship getShipById(String id) {
-        return repository.findById(idToLong(id)).orElseThrow(new Supplier<NotFoundException>() {
-            @Override
-            public NotFoundException get() {
-                return new NotFoundException();
-            }
-        });
-    }
-
-    @Override
     public void deleteShip(String id) {
-        Long longId = idToLong(id);
-        if (!repository.existsById(longId))
-            throw new NotFoundException();
+        Long longId = idStringToLong(id);
+        if (!repository.existsById(longId)) throw new NotFoundException();
         repository.deleteById(longId);
     }
 
     private void calculateRating(Ship ship) {
         calendar.setTime(ship.getProdDate());
         BigDecimal rating = BigDecimal.valueOf(80 * ship.getSpeed() * (ship.getUsed() ? 0.5 : 1)
-                / (3019 - calendar.get(Calendar.YEAR) + 1));
+                                                    / (3019 - calendar.get(Calendar.YEAR) + 1));
         ship.setRating(rating.setScale(2, RoundingMode.HALF_UP).doubleValue());
     }
 
-    private Long idToLong(String id) {
+    private Long idStringToLong(String id) {
         try {
             long idChecked = Long.parseLong(id);
             if (idChecked <= 0) throw new Exception();

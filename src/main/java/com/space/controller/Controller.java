@@ -5,15 +5,15 @@ import com.space.model.ShipType;
 import com.space.service.ShipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-//import org.springframework.web.servlet.ModelAndView;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("rest/ships")
-public class ShipController {
+public class Controller {
+
     @Autowired
-    ShipService shipService;
+    private ShipService shipService;
 
     @GetMapping()
     public List<Ship> getAllShips(@RequestParam(value = "name", required = false) String name,
@@ -32,13 +32,29 @@ public class ShipController {
                                   @RequestParam(value = "pageNumber", required = false) Integer pageNumber,
                                   @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         List<Ship> listOfAllShipsUnsorted = shipService.getAllShips(name, planet, shipType, after, before, isUsed,
-                minSpeed, maxSpeed, minCrewSize, maxCrewSize, minRating, maxRating);
+                                            minSpeed, maxSpeed, minCrewSize, maxCrewSize, minRating, maxRating);
         return shipService.pagedShips(listOfAllShipsUnsorted, pageNumber, pageSize, order);
+    }
+
+    @GetMapping("/count")
+    public Integer getCountOfShips(@RequestParam(value = "name", required = false) String name,
+                                   @RequestParam(value = "planet", required = false) String planet,
+                                   @RequestParam(value = "shipType", required = false) ShipType shipType,
+                                   @RequestParam(value = "after", required = false) Long after,
+                                   @RequestParam(value = "before", required = false) Long before,
+                                   @RequestParam(value = "isUsed", required = false) Boolean isUsed,
+                                   @RequestParam(value = "minSpeed", required = false) Double minSpeed,
+                                   @RequestParam(value = "maxSpeed", required = false) Double maxSpeed,
+                                   @RequestParam(value = "minCrewSize", required = false) Integer minCrewSize,
+                                   @RequestParam(value = "maxCrewSize", required = false) Integer maxCrewSize,
+                                   @RequestParam(value = "minRating", required = false) Double minRating,
+                                   @RequestParam(value = "maxRating", required = false) Double maxRating) {
+        return shipService.getAllShips(name, planet, shipType, after, before, isUsed, minSpeed, maxSpeed,
+                                       minCrewSize, maxCrewSize, minRating, maxRating).size();
     }
 
     @GetMapping("/{id}")
     public Ship getShipById(@PathVariable String id) {
-
         return shipService.getShipById(id);
     }
 
@@ -57,10 +73,3 @@ public class ShipController {
         shipService.deleteShip(id);
     }
 }
-
-//    @RequestMapping(value = "/", method = RequestMethod.GET)
-//    public ModelAndView getAllShips() {
-//        ModelAndView modelAndView = new ModelAndView();
-//        modelAndView.setViewName("ships");
-//        return modelAndView;
-//    }

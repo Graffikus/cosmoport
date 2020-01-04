@@ -7,14 +7,12 @@ import com.space.model.ShipType;
 import java.util.List;
 
 public interface ShipService {
-    List<Ship> getAllShips(String name, String planet, ShipType shipType, Long after, Long before, Boolean isUsed,
-                           Double minSpeed, Double maxSpeed, Integer minCrewSize, Integer maxCrewSize,
-                           Double minRating, Double maxRating);
-
+    List<Ship> getAllShips(String name, String planet, ShipType shipType, Long after, Long before,
+                           Boolean isUsed, Double minSpeed, Double maxSpeed, Integer minCrewSize,
+                           Integer maxCrewSize, Double minRating, Double maxRating);
     List<Ship> pagedShips(List<Ship> ships, Integer pageNumber, Integer pageSize, ShipOrder shipOrder);
-
     Ship createShip(Ship ship);
-    Ship updateShip(String id, Ship ship);
     Ship getShipById(String id);
+    Ship updateShip(String id, Ship ship);
     void deleteShip(String id);
 }
